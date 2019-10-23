@@ -3,22 +3,36 @@ import requests
 import json
 from pprint import pprint
 import spotipy
+import sys
+import os
+import webbrowser
+import spotipy.util as utl
+from json.decoder import JSONDecodeError
+
+# Spotify User data
+from config import username, client_id, client_secret, redirect
+
+# Export calls to validate credentials through Spotify's Web Dev API
+os.environ['SPOTIPY_CLIENT_ID'] = client_id
+os.environ['SPOTIPY_CLIENT_SECRET'] = client_secret
+os.environ['SPOTIPY_REDIRECT_URI'] = redirect
 
 
-#test_url = "https://api.spotify.com/v1/playlists/{1lBm7oc0xhTLO7bMYKnt7o}"
-#response = requests.get(test_url).json()
-#pprint(response)
 
-birdy_uri = 'spotify:artist:2WX2uTcsvV5OnS0inACecP'
-spotify = spotipy.Spotify()
+# Erase cache and prompt user for permission
+try:
+    token = utl.prompt_for_user_token(username)
+except:
+    os.remove(f".cache-{username}")
+    token = utl.prompt_for_user_token(username)
 
-results = spotify.artist_albums(birdy_uri, album_type='album')
-albums = results['items']
-while results['next']:
-    results = spotify.next(results)
-    albums.extend(results['items'])
-
-for album in albums:
-    print(album['name'])
+# Create spotify object
+spotifyObject = spotipy.Spotify(auth=token)
 
 
+# User data
+user_data = spotifyObject.current_user()
+pprint(user_data)
+
+followers = user_data["followers"]["total"]
+print(f"{username} has {followers} followers on Spotify")
