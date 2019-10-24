@@ -9,6 +9,7 @@ import webbrowser
 import spotipy.util as utl
 from json.decoder import JSONDecodeError
 import pandas as pd
+from tabulate import tabulate
 
 from spotipy.oauth2 import SpotifyClientCredentials
 import time
@@ -79,25 +80,32 @@ followers = user_data["followers"]["total"]
 
 # Short term data frame
 # Defaults
-st_rank = []
-st_popularity = []
-st_artists = []
-st_followers = []
-st_genres = []
-st_id = []
+rank = []
+popularity = []
+artists = []
+total_followers = []
+genres = []
+artist_id = []
+total_albums = []
+# total_markets = []
 
 # Populate lists
 if token:
     spotify_object.trace = False
     print(f"Range: short_term")
+
+    # Storing searches as json objects
     results = spotify_object.current_user_top_artists(time_range="short_term", limit=50)
+
     for i, item in enumerate(results["items"]):
-        st_rank.append(i + 1)
-        st_artists.append(item["name"])
-        st_popularity.append(item["popularity"])
-        st_followers.append(item["followers"]["total"])
-        st_genres.append(str(len(item["genres"])))
-        st_id.append(item["id"])
+        rank.append(i + 1)
+        artists.append(item["name"])
+        popularity.append(item["popularity"])
+        total_followers.append(item["followers"]["total"])
+        genres.append(str(len(item["genres"])))
+        artist_id.append(item["id"])
+        artist_album_results = spotify_object.artist_albums(item["id"], limit=50)
+        total_albums.append(len(artist_album_results["items"]))
     print()
     # pprint(results)
     # print()
@@ -105,19 +113,25 @@ else:
     print(f"Can't get token for {username}")
 
 # Creating the df
-short_term_data = pd.DataFrame(
+spotify_df = pd.DataFrame(
     {
-        "Rank": [rank for rank in st_rank],
-        "Artist": [artist for artist in st_artists],
-        "Popularity": [pop for pop in st_popularity],
-        "Total Followers": [fol for fol in st_followers],
-        "Number of Genres": [gen for gen in st_genres],
-        "Artist ID": [i for i in st_id]
+        "Rank": [rank for rank in rank],
+        "Artist": [artist for artist in artists],
+        "Popularity": [pop for pop in popularity],
+        "Total Followers": [fol for fol in total_followers],
+        "Number of Genres": [gen for gen in genres],
+        "Number of Albums": [album for album in total_albums],
+        "Artist ID": [i for i in artist_id]
+
     })
-short_term_data = short_term_data.set_index("Rank")
-print(short_term_data)
+
+# Printing table
+spotify_df = spotify_df.set_index("Rank")
+print(tabulate(spotify_df, headers='keys', tablefmt='psql'))
 print()
 
-artist_results = spotify_object.search(q='artist:' + "William Black", type='artist')
-pprint(artist_results)
+# Testing Space: Artist album work
+test_results = spotify_object.artist_albums("45eNHdiiabvmbp4erw26rg", limit=1)
+pprint(test_results)
+print(len(test_results["items"][0]["available_markets"]))
 
