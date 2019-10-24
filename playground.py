@@ -87,7 +87,8 @@ total_followers = []
 genres = []
 artist_id = []
 total_albums = []
-# total_markets = []
+total_markets = []
+avg_tracks = []
 
 # Populate lists
 if token:
@@ -97,15 +98,37 @@ if token:
     # Storing searches as json objects
     results = spotify_object.current_user_top_artists(time_range="short_term", limit=50)
 
+    # Counters
+    market_counter = 0
+    tracks_counter = 0
     for i, item in enumerate(results["items"]):
+        # Basic artist info
         rank.append(i + 1)
         artists.append(item["name"])
         popularity.append(item["popularity"])
         total_followers.append(item["followers"]["total"])
         genres.append(str(len(item["genres"])))
         artist_id.append(item["id"])
+
+        # Artist total albums (limited to 50...)
         artist_album_results = spotify_object.artist_albums(item["id"], limit=50)
         total_albums.append(len(artist_album_results["items"]))
+
+        # Average market size per album
+        for market in range(0, len(artist_album_results["items"])):
+            market_counter += len(artist_album_results["items"][market]["available_markets"])
+        if len(artist_album_results["items"]) > 0:
+            total_markets.append(market_counter / len(artist_album_results["items"]))
+        else:
+            total_markets.append(market_counter / 1)
+
+        # Average number of tracks per album
+        for track in range(0, len(artist_album_results["items"])):
+            tracks_counter += artist_album_results["items"][track]["total_tracks"]
+        if len(artist_album_results["items"]) > 0:
+            avg_tracks.append(tracks_counter / len(artist_album_results["items"]))
+        else:
+            avg_tracks.append(tracks_counter / 1) # or append 0
     print()
     # pprint(results)
     # print()
@@ -121,7 +144,9 @@ spotify_df = pd.DataFrame(
         "Total Followers": [fol for fol in total_followers],
         "Number of Genres": [gen for gen in genres],
         "Number of Albums": [album for album in total_albums],
-        "Artist ID": [i for i in artist_id]
+        "Average Number of Markets": [m for m in total_markets],
+        "Average Tracks per Album": [t for t in avg_tracks],
+        # "Artist ID": [i for i in artist_id]
 
     })
 
@@ -131,7 +156,13 @@ print(tabulate(spotify_df, headers='keys', tablefmt='psql'))
 print()
 
 # Testing Space: Artist album work
-test_results = spotify_object.artist_albums("45eNHdiiabvmbp4erw26rg", limit=1)
-pprint(test_results)
-print(len(test_results["items"][0]["available_markets"]))
+# test_results = spotify_object.artist_albums("45eNHdiiabvmbp4erw26rg", limit=5)
+# tracks_counter = 0
+# for t in range(0, len(test_results["items"])):
+#     tracks_counter += test_results["items"][t]["total_tracks"]
+#
+# avg_tracks = tracks_counter / len(test_results["items"])
+# an = test_results["items"][0]["artists"][0]["name"]
+# print(f"The artist {an} has an average of {avg_tracks} tracks/songs per album.")
+# pprint(test_results["items"])
 
