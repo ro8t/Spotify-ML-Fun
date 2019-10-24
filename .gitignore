@@ -2,6 +2,7 @@
 /authorization_code
 config.py
 *.rtf
+*.txt
 
 # PyCharm IDE
 __pycache__/
