@@ -11,3 +11,5 @@ My main plan for this project is to experiment with Spotify's Web API. I plan to
 	* Spotipy's library allows me to easily access public spotify data, with which I will perform my data analysis
     * Connected to Spotify's Web API through Spotipy library
         * All export calls are called within the file, terminal credential calls are not needed
+    * Will most likely attempt PCA as my first ML algorithm
+        * IP: building the data frame before standardization
