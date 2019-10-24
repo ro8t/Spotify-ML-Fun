@@ -1,6 +1,7 @@
 # local files/folders
 /authorization_code
 config.py
+*.rtf
 
 # PyCharm IDE
 __pycache__/

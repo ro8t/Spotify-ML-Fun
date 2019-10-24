@@ -1,21 +1,28 @@
 # Dependencies
+
 import requests
 import json
 from pprint import pprint
-import spotipy
 import sys
-import os
 import webbrowser
-import spotipy.util as utl
 from json.decoder import JSONDecodeError
-import pandas as pd
-from tabulate import tabulate
-
+import numpy as np
 from spotipy.oauth2 import SpotifyClientCredentials
 import time
 
+import spotipy
+import os
+import spotipy.util as utl
+import pandas as pd
+from tabulate import tabulate
+import matplotlib.pyplot as plt
+
 # Spotify User data
 from config import username, client_id, client_secret, redirect
+
+# Scikit-learn
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 # Export calls to validate credentials through Spotify's Web Dev API
 os.environ['SPOTIPY_CLIENT_ID'] = client_id
@@ -38,47 +45,7 @@ user_data = spotify_object.current_user()
 display_name = user_data["display_name"]
 followers = user_data["followers"]["total"]
 
-# Basic search loop
-# run_loop = True
-# while run_loop == True:
-#     print()
-#     print(f">>> Welcome {display_name}!")
-#     print(f">>> You currently have {followers} followers.")
-#     print()
-#     print(f">>> Choices:")
-#     print(f">> 0 - Search for an artist")
-#     print(f">> 1 - Exit")
-#     print()
-#     choice = input(">>> Make a selection: ")
-#
-#     # End the program
-#     if choice == "1":
-#         run_loop = False
-#
-#     # Search for an artist
-#     if choice == "0":
-#         print()
-#         artist_name = input("Artist name: ")
-#         print()
-#
-#         # Return search results
-#         artist_results = spotify_object.search(artist_name, 1, 0, "artist")
-#         pprint(artist_results)
-
-# Get top artists
-# if token:
-#     spotify_object.trace = False
-#     ranges = ["short_term", "medium_term", "long_term"]
-#     for range in ranges:
-#         print(f"range: {range}")
-#         results = spotify_object.current_user_top_artists(time_range=range, limit=50)
-#         for i, item in enumerate(results["items"]):
-#             print(i, item["name"], item["popularity"], item["followers"]["total"], str(len(item["genres"])))
-#         print()
-# else:
-#     print(f"Can't get token for {username}")
-
-# Short term data frame
+# Spotify data frame
 # Defaults
 rank = []
 popularity = []
@@ -89,14 +56,16 @@ artist_id = []
 total_albums = []
 total_markets = []
 avg_tracks = []
+popularity_bracket = []
 
 # Populate lists
 if token:
     spotify_object.trace = False
-    print(f"Range: short_term")
+    time_range = ["short_term", "medium_term", "long_term"]
+    print(f"Range: {time_range[2]}")
 
     # Storing searches as json objects
-    results = spotify_object.current_user_top_artists(time_range="short_term", limit=50)
+    results = spotify_object.current_user_top_artists(time_range=time_range[2], limit=50)
 
     # Counters
     market_counter = 0
@@ -129,6 +98,14 @@ if token:
             avg_tracks.append(tracks_counter / len(artist_album_results["items"]))
         else:
             avg_tracks.append(tracks_counter / 1) # or append 0
+
+        # Popularity classification
+        if item["popularity"] >= 85:
+            popularity_bracket.append("Very Popular")
+        elif 70 < item["popularity"] < 85:
+            popularity_bracket.append("Popular")
+        else:
+            popularity_bracket.append("Not Popular")
     print()
     # pprint(results)
     # print()
@@ -146,23 +123,61 @@ spotify_df = pd.DataFrame(
         "Number of Albums": [album for album in total_albums],
         "Average Number of Markets": [m for m in total_markets],
         "Average Tracks per Album": [t for t in avg_tracks],
+        "Popularity Class": [p for p in popularity_bracket]
         # "Artist ID": [i for i in artist_id]
 
     })
 
 # Printing table
 spotify_df = spotify_df.set_index("Rank")
-print(tabulate(spotify_df, headers='keys', tablefmt='psql'))
+print(tabulate(spotify_df, headers="keys", tablefmt="psql"))
 print()
 
-# Testing Space: Artist album work
-# test_results = spotify_object.artist_albums("45eNHdiiabvmbp4erw26rg", limit=5)
-# tracks_counter = 0
-# for t in range(0, len(test_results["items"])):
-#     tracks_counter += test_results["items"][t]["total_tracks"]
-#
-# avg_tracks = tracks_counter / len(test_results["items"])
-# an = test_results["items"][0]["artists"][0]["name"]
-# print(f"The artist {an} has an average of {avg_tracks} tracks/songs per album.")
-# pprint(test_results["items"])
+# Principal Component Analysis
+features = ["Total Followers", "Number of Genres", "Average Number of Markets", "Average Tracks per Album"]
+
+# Separating out the features
+components = spotify_df.loc[:, features].values
+
+# Separating out the target
+all_targets = spotify_df.loc[:, ["Popularity Class"]].values
+
+# Standardizing the features
+components = StandardScaler().fit_transform(components)
+
+# PCA Projection to 2D
+pca = PCA(n_components=2)
+principal_components = pca.fit_transform(components)
+
+pca_df = pd.DataFrame(data=principal_components, columns=["Principal Component 1", "Principal Component 2"])
+final_df = pd.concat([pca_df, spotify_df[["Popularity Class"]].reset_index()], axis=1)
+final_df = final_df.drop(columns=["Rank"])
+print(tabulate(final_df, headers="keys", tablefmt="psql"))
+
+# Plotting Analysis
+fig = plt.figure(figsize=(8, 8))
+ax = fig.add_subplot(1, 1, 1)
+ax.set_xlabel("Principal Component 1", fontsize=15)
+ax.set_ylabel("Principal Component 2", fontsize=15)
+ax.set_title("2 Component PCA", fontsize=20)
+targets = ["Very Popular", "Popular", "Not Popular"]
+colors = ["r", "g", "b"]
+for target, color in zip(targets, colors):
+    indicesToKeep = final_df["Popularity Class"] == target
+    ax.scatter(final_df.loc[indicesToKeep, "Principal Component 1"],
+               final_df.loc[indicesToKeep, "Principal Component 2"],
+               c=color, s=50)
+ax.legend(targets)
+ax.grid()
+plt.savefig("2 Component PCA on Artist Popularity.png")
+# plt.show()
+
+# Variance
+variance = pca.explained_variance_ratio_
+comp1_var = round(variance[0] * 100, 4)
+comp2_var = round(variance[1] * 100, 4)
+total_var = comp1_var + comp2_var
+print(f"Component 1 contains {comp1_var}% of the variance and Component 2 contains {comp2_var}%",
+      f"The total retained variance is: {total_var}%")
+
 
