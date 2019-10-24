@@ -1,6 +1,13 @@
+# local files/folders
 /authorization_code
-.DS_Store
-/.idea
 config.py
-.cache-rohands17
+
+# PyCharm IDE
 __pycache__/
+/.idea
+.cache-rohands17
+
+# git random
+.DS_Store
+
+
