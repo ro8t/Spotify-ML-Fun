@@ -169,7 +169,7 @@ for target, color in zip(targets, colors):
                c=color, s=50)
 ax.legend(targets)
 ax.grid()
-plt.savefig("2 Component PCA on Artist Popularity.png")
+# plt.savefig("2 Component PCA on Artist Popularity.png")
 # plt.show()
 
 # Variance
